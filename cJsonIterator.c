@@ -3,18 +3,11 @@
 #include <ctype.h>
 #include <assert.h>
 
-bool jsonOpen(Json *json, char *fileName) {
-#ifdef USE_STDIO
-	*json = fopen(fileName, "r");
-	return (*json) != NULL;
+#ifdef JSON_USE_STDIO
+#define jsonGetc(json) getc(json)
+#define jsonUngetc(c,json) ungetc(c, json)
 #endif
-}
 
-void jsonClose(Json *json) {
-#ifdef USE_STDIO
-	fclose(*json);
-#endif
-}
 static bool readString(Json *json, char *dst) {
 	int c;
 	while (true) {
@@ -107,58 +100,104 @@ bool jsonGetNextToken(Json *json, char *dst) {
 	return res;
 }
 
+int jsonGetObjectValue(Json *json, char *dst) {
+	if (! jsonGetNextToken(json, dst))
+		return false;
+	if (strcmp(dst, ":") != 0)
+		return false;
+	return jsonGetNextToken(json, dst);
+}
+
+int jsonGetFirstObjectKey(Json *json, char *dst) {
+	if (! jsonGetNextToken(json, dst))
+		return JSON_ERROR;
+	if (strcmp(dst, "{") != 0)
+		return JSON_ERROR;
+	if (! jsonGetNextToken(json, dst))
+		return JSON_ERROR;
+	if (strcmp(dst, "}") == 0)
+		return JSON_ENDED;
+	else
+		return JSON_OK;
+}
+
+int jsonGetNextObjectKey(Json *json, char *dst) {
+	// Get the next token
+	if (! jsonGetNextToken(json, dst))
+		return JSON_ERROR;
+	// Is it the end of json
+	if (strcmp(dst, "}") == 0)
+		return JSON_ENDED;
+	// If not it should be ','
+	if (strcmp(dst, ",") != 0)
+		return JSON_ERROR;
+	if (jsonGetNextToken(json, dst))
+		return JSON_OK;
+	else
+		return JSON_ERROR;
+}
+
+int jsonGetFirstArrayValue(Json *json, char *dst) {
+	if (! jsonGetObjectValue(json, dst))
+		return JSON_ERROR;
+	if (strcmp(dst, "[") != 0)
+		return JSON_ERROR;
+	if (! jsonGetNextToken(json, dst))
+		return JSON_ERROR;
+	if (strcmp(dst, "]") == 0)
+		return JSON_ENDED;
+	else
+		return JSON_OK;
+}
+
+int jsonGetNextArrayValue(Json *json, char *dst) {
+	if (! jsonGetNextToken(json, dst))
+		return JSON_ERROR;
+	// Is it the end of array
+	if (strcmp(dst, "]") == 0)
+		return JSON_ENDED;
+	// If not it should be ','
+	if (strcmp(dst, ",") != 0)
+		return JSON_ERROR;
+	if (jsonGetNextToken(json, dst))
+		return JSON_OK;
+	else
+		return JSON_ERROR;
+}
+	
 #define JSON_FILENAME "example.json"
 int main() {
 	Json json;
+	int res;	
 	char tmp[50];
-	char colon[10];
-	
-	printf("reading file %s\n", JSON_FILENAME);
 	
 	if (! jsonOpen(&json, JSON_FILENAME)) {
 		printf("Couldn't open file %s for reading\n", JSON_FILENAME);
 		return 0;
 	}
-	assert(jsonGetNextToken(&json, tmp));
-	assert(strcmp(tmp, "{") == 0);
-	assert(jsonGetNextToken(&json, tmp));
-	if (strcmp(tmp, "}") == 0) {
-		jsonClose(&json);
-		return 0;
-	}
-	while (true) {
+	
+	res = jsonGetFirstObjectKey(&json, tmp);
+	while (res != JSON_ENDED) {
 		printf("Value(s) for key \"%s\" - ", tmp);
 		
-		assert(jsonGetNextToken(&json, colon));
-		assert(strcmp(colon, ":") == 0);
-		
 		if (strcmp(tmp, "intakeTimes") == 0 || strcmp(tmp, "pillsPerIntake") == 0) {
-			assert(jsonGetNextToken(&json, tmp));
-			assert(strcmp(tmp, "[") == 0);
-			assert(jsonGetNextToken(&json, tmp));
-			if (strcmp(tmp, "]") != 0) {
-				printf("%s", tmp);
-				while (true) {
-					assert(jsonGetNextToken(&json, tmp));
-					if (strcmp(tmp, "]") == 0)
-						break;
-					assert(strcmp(tmp, ",") == 0);
-					assert(jsonGetNextToken(&json, tmp));
-					printf("  %s", tmp);
-				}
+			res = jsonGetFirstArrayValue(&json, tmp);
+			assert (res != JSON_ERROR);
+			while (res != JSON_ENDED) {
+				printf("%s   ", tmp);
+				res = jsonGetNextArrayValue(&json, tmp);
+				assert (res != JSON_ERROR);
 			}
 			printf("\n");
 		} else {
-			assert(jsonGetNextToken(&json, tmp));
+			assert(jsonGetObjectValue(&json, tmp));
 			printf("%s\n", tmp);
 		}
-		assert(jsonGetNextToken(&json, tmp));
-		if (strcmp(tmp, "}") == 0) {
-			jsonClose(&json);
-			return 0;
-		}
-		assert(strcmp(tmp, ",") == 0);
-		assert(jsonGetNextToken(&json, tmp));
+		
+		res = jsonGetNextObjectKey(&json, tmp);
+		assert(res != JSON_ERROR);
 	}
+	jsonClose(&json);
+	return 0;
 }
 
