@@ -1,0 +1,14 @@
+{
+	"therapyStartTime": "01.02.03-04:05",
+	"illnessName" : "Caffeinedeficit",
+	"patientId"  : "017087165",
+	"protocolId"   :"P-13-14-15-1",
+	"siteId"       : "147852",
+	"pillName"     : "ProtoMed2",
+	"serialNumber" : "A0:CC:2B:5C:EF:C0",
+	"lockout" : 30,
+	"tolerance": 28,
+	"pillsInCassette":20,
+	"intakeTimes": [ 1300, 1400, 1500, 1600],
+	"pillsPerIntake": [1, 2, 1, 1]
+}
