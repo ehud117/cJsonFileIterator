@@ -58,7 +58,7 @@ static bool checkLiteralToken(Json *json, const char *tokEnd, char *dst) {
 	
 }
 
-bool _jsonGetNextToken(Json *json, char *dst) {
+static bool jsonGetNextToken(Json *json, char *dst) {
 	int c;
 	do {
 		c = jsonGetc(*json);
@@ -83,7 +83,7 @@ bool _jsonGetNextToken(Json *json, char *dst) {
 	if (isdigit(c)) {
 		while (true) {
 			c = jsonGetc(*json);
-			if (! isdigit(c)) 
+			if (! isdigit(c) && c != '.') 
 				break;
 			*dst++ = c;
 		}	
@@ -94,11 +94,6 @@ bool _jsonGetNextToken(Json *json, char *dst) {
 	return false;
 }
 
-bool jsonGetNextToken(Json *json, char *dst) {
-	bool res = _jsonGetNextToken(json, dst);
-	/* printf("jsonGetNextToken returned %d, %s\n", res, dst); */
-	return res;
-}
 
 int jsonGetObjectValue(Json *json, char *dst) {
 	if (! jsonGetNextToken(json, dst))
@@ -177,6 +172,7 @@ int main() {
 	}
 	
 	res = jsonGetFirstObjectKey(&json, tmp);
+	assert (res != JSON_ERROR);
 	while (res != JSON_ENDED) {
 		printf("Value(s) for key \"%s\" - ", tmp);
 		
@@ -197,6 +193,7 @@ int main() {
 		res = jsonGetNextObjectKey(&json, tmp);
 		assert(res != JSON_ERROR);
 	}
+	
 	jsonClose(&json);
 	return 0;
 }
